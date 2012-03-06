@@ -1,0 +1,23 @@
+<project name="InteractiveMediaAds" default="deploy">
+
+	<!-- The version number of our plugin, used in the zip and SWF file names -->
+	<property name="version" value="3.2.7" />
+
+	<!-- "basename" is the name of this plugin to be used in the SWF file name -->
+	<property name="basename" value="flowplayer.ima" />
+	<property name="releasedir" value="flowplayer.ima" />
+	<property name="plugin-binary" value="${basename}.swf" />
+	<property name="plugin-binary-versioned" value="${basename}-${version}.swf" />
+	<property name="plugin-swc" value="${basename}.swc" />
+	
+	<property name="library-path" value="lib/" />
+
+	<!-- The main class of our plugin. This is the main class provided to the mxmlc compiler -->
+	<property name="plugin-main-class" value="com/iheart/ima/InteractiveMediaAds.as" />
+
+	<property name="devkit-dir" value="../flowplayer.devkit" />
+	
+	<property file="${devkit-dir}/plugin-build.properties" />
+	<import file="${devkit-dir}/plugin-build.xml"/>
+	<property name="flowplayer_lib" value="${devkit-dir}/flowplayer.swc" />
+</project>
