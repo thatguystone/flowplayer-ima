@@ -69,7 +69,8 @@ package com.iheart.ima {
 
 	public class InteractiveMediaAdsProvider extends Sprite implements Plugin {
 		private var log:Log = new Log(this);
-		private var _ad:Object;
+		private var _adInfo:Object;
+		private var _currentAd:VideoAd;
 		private var _adsLoader:AdsLoader;
 		private var _companions:CompanionManager = new CompanionManager()
 		private var _config:Config;
@@ -127,6 +128,11 @@ package com.iheart.ima {
 			}
 			
 			_adsLoader.requestAds(createAdsRequest(url));
+		}
+		
+		[External]
+		public function currentTime():int {
+			return _currentAd ? _currentAd.currentTime : 0;
 		}
 		
 		/**
@@ -199,6 +205,7 @@ package com.iheart.ima {
 			var adError:AdError = e.error;
 			
 			visible = false;
+			_currentAd = null;
 			
 			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_ERROR, adError.errorCode, adError.errorMessage);
 		}
@@ -210,16 +217,21 @@ package com.iheart.ima {
 		private function onAdLoaded(e:AdLoadedEvent):void {
 			_resize();
 			
-			var adType:String = '';
+			var adType:String = '',
+				duration:Number = -1;
+			
 			if (e['ad']) {
-				adType = MediaTool.getMediaType(e['ad']['mediaUrl']);
+				_currentAd = e['ad'];
+				adType = MediaTool.getMediaType(_currentAd['mediaUrl']);
+				duration = _currentAd['duration'];
 			}
 			
-			_ad = {
-				adType: adType
+			_adInfo = {
+				adType: adType,
+				duration: duration
 			};
 			
-			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_LOADED, _ad);
+			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_LOADED, _adInfo);
 		}
 		
 		/*
@@ -231,7 +243,7 @@ package com.iheart.ima {
 			MediaTool.scaleVideo(_video, [_video.videoWidth, _video.videoHeight], [stage.width, stage.height]);
 			MediaTool.centerVideo(_video, this);
 			
-			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_START, _ad);
+			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_START, _adInfo);
 		}
 		
 		/**
@@ -240,8 +252,9 @@ package com.iheart.ima {
 		private function onAdComplete(e:AdEvent):void {
 			visible = false;
 			_playButton('showButton');
+			_currentAd = null;
 			
-			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_FINISH, _ad);
+			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_FINISH, _adInfo);
 		}
 	}
 }
