@@ -6,8 +6,6 @@ If you need to schedule ads in your clips, or schedule prerolls, or anything lik
 
 # Usage
 
-Setup your clip to use "stw" as the provider; for example:
-
 ```javascript
 	f = flowplayer('player'...)
 	f.getPlugin('ima').playAd('http://some/path/to/vast.xml');
