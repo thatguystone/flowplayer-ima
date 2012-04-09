@@ -18,6 +18,8 @@
 package com.iheart.ima {
 	import org.flowplayer.controller.StreamProvider;
 	import org.flowplayer.controller.TimeProvider;
+	import org.flowplayer.controller.VolumeController;
+	import org.flowplayer.flow_internal;
 	import org.flowplayer.model.Clip;
 	import org.flowplayer.model.ClipEvent;
 	import org.flowplayer.model.Playlist;
@@ -26,12 +28,14 @@ package com.iheart.ima {
 	import org.flowplayer.util.Log;
 	import org.flowplayer.util.PropertyBinder;
 	import org.flowplayer.view.Flowplayer;
-	import org.flowplayer.controller.VolumeController;
 	
 	import flash.utils.Dictionary;
 	import flash.display.DisplayObject;
 	import flash.net.NetConnection;
 	import flash.net.NetStream;
+	
+	//to be able to access clip.clipObject to check for scaling
+	use namespace flow_internal;
 	
 	public class InteractiveMediaAdsProvider implements Plugin, StreamProvider {
 		private var log:Log = new Log(this);
@@ -69,6 +73,10 @@ package com.iheart.ima {
 		 */
 		
 		public function load(event:ClipEvent, clip:Clip, pauseAfterStart:Boolean = true):void {
+			if (!clip.clipObject['scaling']) {
+				clip.setScaling('fit');
+			}
+			
 			_activeAd = new AdPlayer(_player, _config, _model, clip);
 		}
 		
@@ -77,16 +85,16 @@ package com.iheart.ima {
 			return null;
 		}
 		
-		public function pause(event:ClipEvent):void {
-		
+		public function pause(e:ClipEvent):void {
+			_activeAd.pause(e);
 		}
 		
-		public function resume(event:ClipEvent):void {
-		
+		public function resume(e:ClipEvent):void {
+			_activeAd.resume(e);
 		}
 		
-		public function stop(event:ClipEvent, closeStream:Boolean = false):void {
-		
+		public function stop(e:ClipEvent, closeStream:Boolean = false):void {
+			_activeAd.stop(e);
 		}
 		
 		public function get time():Number {
@@ -180,7 +188,8 @@ package com.iheart.ima {
 		public function playAd(url:String):void {
 			_player.play(_player.config.createClip({
 				'provider': 'ima',
-				'url': url
+				'url': url,
+				'scaling': 'fit'
 			}));
 		}
 		

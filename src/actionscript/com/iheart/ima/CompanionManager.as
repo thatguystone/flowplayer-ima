@@ -45,7 +45,7 @@ package com.iheart.ima {
 		}
 		
 		private function renderHtmlCompanionAd(companionArray:Array, size:String):void {
-			if (companionArray.length > 0) {
+			if (companionArray && companionArray.length > 0) {
 				log.debug("There are " + companionArray.length + " companions for this ad.");
 				var companion:CompanionAd = companionArray[0] as CompanionAd;
 				if (companion.environment == CompanionAdEnvironments.HTML) {
@@ -53,7 +53,6 @@ package com.iheart.ima {
 					var htmlCompanion:HtmlCompanionAd = companion as HtmlCompanionAd;
 					
 					if (ExternalInterface.available) {
-						log.debug('writing ad to external interface');
 						ExternalInterface.call('writeIntoCompanionDiv', htmlCompanion.content, size);
 					}
 				}

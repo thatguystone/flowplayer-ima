@@ -18,5 +18,6 @@
 package com.iheart.ima {
 	public class Config {
 		public var disableCompanionAds:Boolean = false;
+		public var nextOnError:Boolean = true;
 	}
 }

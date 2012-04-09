@@ -16,16 +16,17 @@
  *	along with flowplayer-streamtheworld.  If not, see <http://www.gnu.org/licenses/>.
  */
 package com.iheart.ima {
-	import org.flowplayer.model.Clip;
-	import org.flowplayer.model.DisplayProperties;
-	import org.flowplayer.model.ClipEventType;
-	import org.flowplayer.model.ClipEvent;
-	import org.flowplayer.model.PluginEventType;
-	import org.flowplayer.view.Flowplayer;
-	import org.flowplayer.model.PluginModel;
-	import org.flowplayer.util.Log;
 	import org.flowplayer.controller.VolumeController;
+	import org.flowplayer.model.Clip;
+	import org.flowplayer.model.ClipError;
+	import org.flowplayer.model.ClipEvent;
+	import org.flowplayer.model.ClipEventType;
+	import org.flowplayer.model.DisplayProperties;
+	import org.flowplayer.model.PluginEventType;
+	import org.flowplayer.model.PluginModel;
 	import org.flowplayer.util.Assert;
+	import org.flowplayer.util.Log;
+	import org.flowplayer.view.Flowplayer;
 	
 	import com.google.ads.instream.api.Ad;
 	import com.google.ads.instream.api.AdError;
@@ -49,8 +50,9 @@ package com.iheart.ima {
 	import com.google.ads.instream.api.VideoAd;
 	import com.google.ads.instream.api.VideoAdsManager;
 	
-	import flash.media.Video;
 	import flash.display.MovieClip;
+	import flash.media.Video;
+	import flash.net.NetStream;
 	import flash.utils.setTimeout;
 	
 	internal class AdPlayer {
@@ -67,8 +69,10 @@ package com.iheart.ima {
 		private var _companions:CompanionManager = new CompanionManager();
 		private var _video:Video;
 		private var _clickTrackingElement:MovieClip;
+		private var _adsManager:AdsManager;
 		
 		private var _volumeController:VolumeController;
+		private var _netstream:NetStream;
 		
 		public function AdPlayer(player:Flowplayer, config:Config, model:PluginModel, clip:Clip) {
 			_player = player;
@@ -98,10 +102,55 @@ package com.iheart.ima {
 			return _currentAd.currentTime;
 		}
 		
+		public function stop(e:ClipEvent):void {
+			//null when there's an ad error
+			if (_netstream) {
+				_netstream.close();
+			}
+			
+			_clip.dispatchEvent(e);
+			cleanup();
+		}
+		
+		public function pause(e:ClipEvent):void {
+			_netstream.pause();
+			_clip.dispatchEvent(e);
+		}
+		
+		public function resume(e:ClipEvent):void {
+			_netstream.resume();
+			_clip.dispatchEvent(e);
+		}
+		
+		private function cleanup():void {
+			_clip.setContent(null);
+			
+			//don't leave the video on the screen
+			//null when there's an ad error, and the panel dies
+			if (_clickTrackingElement) {
+				_player.panel.removeChild(_clickTrackingElement);
+			}
+			
+			_adsManager.unload();
+		}
+		
+		private function dispatchError(id:int, error:String):void {
+			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_ERROR, id);
+			_clip.dispatchError(ClipError.STREAM_LOAD_FAILED, error);
+			
+			if (_config.nextOnError) {
+				_player.next();
+			}
+		}
+		
 		private function createAdsRequest():AdsRequest {
 			var request:AdsRequest = new AdsRequest();
 			
 			_video = new Video(_screen.widthPx, _screen.heightPx);
+			_clip.setContent(_video);
+			
+			_clickTrackingElement = new MovieClip();
+			_clickTrackingElement.addChild(_video);
 			
 			request.adSlotHeight = _screen.heightPx;
 			request.adSlotWidth = _screen.widthPx;
@@ -116,34 +165,23 @@ package com.iheart.ima {
 		 * Once the VAST is done loading and all ready
 		 */
 		private function onAdsLoaded(e:AdsLoadedEvent):void {
-			log.info('onAdsLoaded');
+			_adsManager = e.adsManager;
 			
-			var adsManager:AdsManager = e.adsManager;
+			_adsManager.addEventListener(AdErrorEvent.AD_ERROR, onAdError);
+			_adsManager.addEventListener(AdEvent.COMPLETE, onAdComplete);
+			_adsManager.addEventListener(AdEvent.STARTED, onAdStarted);
+			_adsManager.addEventListener(AdLoadedEvent.LOADED, onAdLoaded);
 			
-			adsManager.addEventListener(AdErrorEvent.AD_ERROR, onAdError);
-			adsManager.addEventListener(AdEvent.COMPLETE, onAdComplete);
-			adsManager.addEventListener(AdEvent.STARTED, onAdStarted);
-			adsManager.addEventListener(AdLoadedEvent.LOADED, onAdLoaded);
-			
-			if (adsManager.type == AdsManagerTypes.VIDEO) {
-				var videoAdsManager:VideoAdsManager = adsManager as VideoAdsManager;
-				
-				_clickTrackingElement = new MovieClip();
-				_clickTrackingElement.addChild(_video);
-				_player.addToPanel(_clickTrackingElement, {
-					width: '100%',
-					height: '100%'
-				});
-				
+			if (_adsManager.type == AdsManagerTypes.VIDEO) {
+				var videoAdsManager:VideoAdsManager = _adsManager as VideoAdsManager;
 				videoAdsManager.clickTrackingElement = _clickTrackingElement;
-				
 				videoAdsManager.load(_video);
 				videoAdsManager.play();
 			} else {
-				_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_ERROR, Errors.UNSUPPORTED_TYPE);
+				dispatchError(Errors.UNSUPPORTED_TYPE, 'Creative in response not supported');
 			}
 			
-			_companions.displayCompanions(adsManager);
+			_companions.displayCompanions(_adsManager);
 		}
 		
 		/**
@@ -154,7 +192,7 @@ package com.iheart.ima {
 			
 			_currentAd = null;
 			
-			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_ERROR, adError.errorCode, adError.errorMessage);
+			dispatchError(adError.errorCode, 'Error with VAST response: ' + adError.errorMessage);
 		}
 		
 		/**
@@ -164,7 +202,14 @@ package com.iheart.ima {
 		private function onAdLoaded(e:AdLoadedEvent):void {
 			//_resize();
 			_clip.dispatch(ClipEventType.BEGIN);
-			_volumeController.netStream = e.netStream;
+			_netstream = _volumeController.netStream = e.netStream;
+			
+			/*
+			e.netStream.client = {
+				onMetaData: function():void {},
+				onBufferFull: function():void {}
+			}
+			*/
 			
 			var adType:String = '',
 				duration:Number = -1;
@@ -189,26 +234,30 @@ package com.iheart.ima {
 		 * The single ad is playing.
 		 */
 		private function onAdStarted(e:AdEvent):void {
-			// MediaTool.scaleVideo(_video, [_video.videoWidth, _video.videoHeight], [stage.width, stage.height]);
-			// MediaTool.centerVideo(_video, this);
+			_player.addToPanel(_clickTrackingElement, {
+				width: '100%',
+				height: '100%'
+			});
+			
+			log.debug('width: ' + _video.videoWidth + '; height: ' + _video.videoHeight);
 			
 			_clip.dispatch(ClipEventType.BUFFER_FULL);
-			_clip.dispatch(ClipEventType.START);
+			
 			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_START, _adInfo);
+			_clip.dispatch(ClipEventType.START);
 		}
 		
 		/**
 		 * The ad is done playing.
 		 */
 		private function onAdComplete(e:AdEvent):void {
-			//clean up after ourselves...don't leave the video on the screen
-			_player.panel.removeChild(_clickTrackingElement);
+			cleanup();
+			
+			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_FINISH, _adInfo);
 			
 			if (_adInfo.duration == -1) {
 				_clip.dispatchBeforeEvent(new ClipEvent(ClipEventType.FINISH));
 			}
-			
-			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_FINISH, _adInfo);
 		}
 	}
 }
