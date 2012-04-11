@@ -22,10 +22,12 @@ package com.iheart.ima {
 	import org.flowplayer.model.ClipEvent;
 	import org.flowplayer.model.ClipEventType;
 	import org.flowplayer.model.DisplayProperties;
+    import org.flowplayer.model.DisplayPropertiesImpl;
 	import org.flowplayer.model.PluginEventType;
 	import org.flowplayer.model.PluginModel;
 	import org.flowplayer.util.Assert;
 	import org.flowplayer.util.Log;
+	import org.flowplayer.util.PropertyBinder;
 	import org.flowplayer.view.Flowplayer;
 	
 	import com.google.ads.instream.api.Ad;
@@ -50,10 +52,12 @@ package com.iheart.ima {
 	import com.google.ads.instream.api.VideoAd;
 	import com.google.ads.instream.api.VideoAdsManager;
 	
+	import flash.display.DisplayObject;
 	import flash.display.MovieClip;
 	import flash.media.Video;
 	import flash.net.NetStream;
 	import flash.utils.setTimeout;
+	import flash.utils.clearTimeout;
 	
 	internal class AdPlayer {
 		private var log:Log = new Log(this);
@@ -123,22 +127,27 @@ package com.iheart.ima {
 		}
 		
 		private function cleanup():void {
-			_clip.setContent(null);
-			
 			//don't leave the video on the screen
 			//null when there's an ad error, and the panel dies
 			if (_clickTrackingElement) {
 				_player.panel.removeChild(_clickTrackingElement);
 			}
 			
-			_adsManager.unload();
+			//not set when there is an ad error
+			if (_adsManager) {
+				_adsManager.unload();
+			}
 		}
 		
 		private function dispatchError(id:int, error:String):void {
 			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_ERROR, id);
 			_clip.dispatchError(ClipError.STREAM_LOAD_FAILED, error);
 			
-			if (_config.nextOnError) {
+			//OMFG there is no nice way to make flowplayer recover from an error
+			//in a playlist. this is the best there is, and even still, I had to
+			//hack FP to fire a PLAYLIST_COMPLETE event on next
+			//  - modifying BufferingState to handle errors fails
+			if (_config.nextOnError) {	
 				_player.next();
 			}
 		}
@@ -147,10 +156,10 @@ package com.iheart.ima {
 			var request:AdsRequest = new AdsRequest();
 			
 			_video = new Video(_screen.widthPx, _screen.heightPx);
-			_clip.setContent(_video);
-			
 			_clickTrackingElement = new MovieClip();
 			_clickTrackingElement.addChild(_video);
+			
+			_clip.setContent(_clickTrackingElement);
 			
 			request.adSlotHeight = _screen.heightPx;
 			request.adSlotWidth = _screen.widthPx;
@@ -200,16 +209,29 @@ package com.iheart.ima {
 		 * size information about the ad is present in _video.
 		 */
 		private function onAdLoaded(e:AdLoadedEvent):void {
-			//_resize();
 			_clip.dispatch(ClipEventType.BEGIN);
 			_netstream = _volumeController.netStream = e.netStream;
 			
-			/*
 			e.netStream.client = {
-				onMetaData: function():void {},
-				onBufferFull: function():void {}
-			}
-			*/
+				onMetaData: function(o:Object):void {
+					var m:Object = _clip.metaData;
+					m.width = o.width;
+					m.height = o.height;
+					_clip.metaData = m;
+				}
+				//onBufferFull: function():void {}
+			};
+			
+			//FP creates a VideoDisplay object to house the tracking element (set in setContent),
+			//but it doesn't write it to the screen or anything, so we have to do it manually
+			//as well as make sure that its (x,y) are set correctly
+			// - see org.flowplayer.view.VideoDisplay@init(): we don't give it a Video object,
+			//     so we're never added to the element that gets the correct positioning stuffs
+			_clip.onResized(function():void {
+				var p:DisplayProperties = new PropertyBinder(new DisplayPropertiesImpl(), null).copyProperties({left: '50%', top: '50%'}) as DisplayProperties
+				_player.panel.update(_clickTrackingElement, p);
+				_player.panel.draw(_clickTrackingElement);
+			});
 			
 			var adType:String = '',
 				duration:Number = -1;
@@ -233,31 +255,51 @@ package com.iheart.ima {
 		/*
 		 * The single ad is playing.
 		 */
+		private var _onAdStarted:Boolean = false;
 		private function onAdStarted(e:AdEvent):void {
-			_player.addToPanel(_clickTrackingElement, {
-				width: '100%',
-				height: '100%'
-			});
-			
-			log.debug('width: ' + _video.videoWidth + '; height: ' + _video.videoHeight);
-			
-			_clip.dispatch(ClipEventType.BUFFER_FULL);
+			//this method fires twice sometimes...no fucking idea why
+			//but this seems like pretty standard behavior for flowplayer
+			if (_onAdStarted) {
+				return;
+			}
+			_onAdStarted = true;
 			
 			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_START, _adInfo);
 			_clip.dispatch(ClipEventType.START);
+			_clip.dispatch(ClipEventType.BUFFER_FULL);
+			
+			_player.addToPanel(_clickTrackingElement, {left: '50%', top: '50%'});
+			
+			//sometimes onFinish just doesn't fire. excellent.
+			_clip.onLastSecond(function():void {
+				log.info('ON LAST SECOND');
+				
+				var timeout:uint = setTimeout(function():void {
+					log.info('Failed to send event');
+					_clip.dispatchBeforeEvent(new ClipEvent(ClipEventType.FINISH));
+				}, 1500);
+				
+				_clip.onFinish(function():void {
+					clearTimeout(timeout);
+				});
+			});
 		}
 		
 		/**
 		 * The ad is done playing.
 		 */
+		private var _onAdComplete:Boolean = false;
 		private function onAdComplete(e:AdEvent):void {
+			//this method fires twice sometimes...no fucking idea why
+			//but this seems like pretty standard behavior for flowplayer
+			if (_onAdComplete) {
+				return;
+			}
+			_onAdComplete = true;
+			
 			cleanup();
 			
 			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_FINISH, _adInfo);
-			
-			if (_adInfo.duration == -1) {
-				_clip.dispatchBeforeEvent(new ClipEvent(ClipEventType.FINISH));
-			}
 		}
 	}
 }

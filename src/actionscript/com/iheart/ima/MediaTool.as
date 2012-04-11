@@ -27,28 +27,6 @@ package com.iheart.ima {
 			video: ['flv', 'mp4', 'f4v', 'f4p', '3gp']
 		};
 		
-		public static function scaleVideo(v:Video, curr:Array, fit:Array):void {
-			var ratio:Number = fit[0] / curr[0], //width ratio
-				useW:Boolean = ratio * curr[1] <= fit[1]; //if scaled height fits with new ratio
-			
-			if (!useW) {
-				ratio = fit[1] / curr[1];
-			}
-			
-			v.width = ratio * curr[0];
-			v.height = ratio * curr[1];
-		}
-		
-		public static function centerVideo(v:Video, d:DisplayObject):void {
-			if (d.height > v.height) {
-				v.y = (d.height / 2) - (v.height / 2);
-				v.x = 0;
-			} else {
-				v.x = (d.width / 2) - (v.width / 2);
-				v.y = 0;
-			}
-		}
-		
 		/**
 		 * Since I can't get the mimeType of the ad from the Google SDK,
 		 * I have to use this hack.  Excellent!
