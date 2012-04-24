@@ -2,18 +2,18 @@
  *	Copyright (c) 2011 Andrew Stone
  *	This file is part of flowplayer-ima.
  *
- *	flowplayer-streamtheworld is free software: you can redistribute it and/or modify
+ *	flowplayer-ima is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation, either version 3 of the License, or
  *	(at your option) any later version.
  *
- *	flowplayer-streamtheworld is distributed in the hope that it will be useful,
+ *	flowplayer-ima is distributed in the hope that it will be useful,
  *	but WITHOUT ANY WARRANTY; without even the implied warranty of
  *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with flowplayer-streamtheworld.  If not, see <http://www.gnu.org/licenses/>.
+ *	along with flowplayer-ima.  If not, see <http://www.gnu.org/licenses/>.
  */
 package com.iheart.ima {
 	import org.flowplayer.controller.StreamProvider;
@@ -47,6 +47,7 @@ package com.iheart.ima {
 		private var _playlist:Playlist;
 		
 		private var _activeAd:AdPlayer;
+		private var _waitingClip:Clip;
 		
 		/**
 		 * Plugin Methods
@@ -65,6 +66,10 @@ package com.iheart.ima {
 		
 		public function onLoad(player:Flowplayer):void {
 			_player = player;
+			
+			if (_waitingClip) {
+				_activeAd = new AdPlayer(_player, _config, _model, _waitingClip);
+			}
 		}
 		
 		/**
@@ -73,11 +78,20 @@ package com.iheart.ima {
 		 */
 		
 		public function load(event:ClipEvent, clip:Clip, pauseAfterStart:Boolean = true):void {
+			log.info('got clip');
 			if (!clip.clipObject['scaling']) {
 				clip.setScaling('fit');
 			}
 			
-			_activeAd = new AdPlayer(_player, _config, _model, clip);
+			//WHYYYYYYY...sometimes player doesn't get to us until AFTER we're
+			//told to load something. What could possibly go wrong?
+			if (_player) {
+				_activeAd = new AdPlayer(_player, _config, _model, clip);
+			} else {
+				_waitingClip = clip;
+			}
+			
+			log.info('ads requests going');
 		}
 		
 		public function getVideo(clip:Clip):DisplayObject {

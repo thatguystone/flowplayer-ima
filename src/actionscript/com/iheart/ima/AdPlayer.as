@@ -2,18 +2,18 @@
  *	Copyright (c) 2011 Andrew Stone
  *	This file is part of flowplayer-ima.
  *
- *	flowplayer-streamtheworld is free software: you can redistribute it and/or modify
+ *	flowplayer-ima is free software: you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License as published by
  *	the Free Software Foundation, either version 3 of the License, or
  *	(at your option) any later version.
  *
- *	flowplayer-streamtheworld is distributed in the hope that it will be useful,
+ *	flowplayer-ima is distributed in the hope that it will be useful,
  *	but WITHOUT ANY WARRANTY; without even the implied warranty of
  *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *	GNU General Public License for more details.
  *
  *	You should have received a copy of the GNU General Public License
- *	along with flowplayer-streamtheworld.  If not, see <http://www.gnu.org/licenses/>.
+ *	along with flowplayer-ima.  If not, see <http://www.gnu.org/licenses/>.
  */
 package com.iheart.ima {
 	import org.flowplayer.controller.VolumeController;
@@ -75,6 +75,9 @@ package com.iheart.ima {
 		private var _clickTrackingElement:MovieClip;
 		private var _adsManager:AdsManager;
 		
+		//for holding the timer so the ad doesn't get killed
+		private var _waitTime:Number;
+		
 		private var _volumeController:VolumeController;
 		private var _netstream:NetStream;
 		
@@ -90,6 +93,8 @@ package com.iheart.ima {
 				return;
 			}
 			
+			log.info('URL: ' + clip.url);
+			
 			Assert.notNull(clip.url);
 			
 			var _adsLoader:AdsLoader = new AdsLoader();
@@ -103,7 +108,12 @@ package com.iheart.ima {
 		}
 		
 		public function get time():Number {
-			return _currentAd.currentTime;
+			//wtf, this can happen....
+			if (!_currentAd) {
+				return 0;
+			}
+			
+			return _waitTime ? _waitTime : _currentAd.currentTime;
 		}
 		
 		public function stop(e:ClipEvent):void {
@@ -141,7 +151,6 @@ package com.iheart.ima {
 		
 		private function dispatchError(id:int, error:String):void {
 			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_ERROR, id);
-			_clip.dispatchError(ClipError.STREAM_LOAD_FAILED, error);
 			
 			//OMFG there is no nice way to make flowplayer recover from an error
 			//in a playlist. this is the best there is, and even still, I had to
@@ -214,6 +223,8 @@ package com.iheart.ima {
 			
 			e.netStream.client = {
 				onMetaData: function(o:Object):void {
+					_clip.durationFromMetadata = o['duration'];
+					
 					var m:Object = _clip.metaData;
 					m.width = o.width;
 					m.height = o.height;
@@ -240,8 +251,7 @@ package com.iheart.ima {
 				_currentAd = e['ad'];
 				adType = MediaTool.getMediaType(_currentAd['mediaUrl']);
 				duration = _currentAd['duration'];
-				
-				_clip.durationFromMetadata = duration;
+				_clip.duration = duration;
 			}
 			
 			_adInfo = {
@@ -272,16 +282,7 @@ package com.iheart.ima {
 			
 			//sometimes onFinish just doesn't fire. excellent.
 			_clip.onLastSecond(function():void {
-				log.info('ON LAST SECOND');
-				
-				var timeout:uint = setTimeout(function():void {
-					log.info('Failed to send event');
-					_clip.dispatchBeforeEvent(new ClipEvent(ClipEventType.FINISH));
-				}, 1500);
-				
-				_clip.onFinish(function():void {
-					clearTimeout(timeout);
-				});
+				_waitTime = _currentAd.currentTime;
 			});
 		}
 		
@@ -297,9 +298,12 @@ package com.iheart.ima {
 			}
 			_onAdComplete = true;
 			
+			log.info('onAdComplete');
+			
 			cleanup();
 			
 			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_FINISH, _adInfo);
+			_clip.dispatchBeforeEvent(new ClipEvent(ClipEventType.FINISH));
 		}
 	}
 }
