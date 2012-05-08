@@ -69,6 +69,7 @@ package com.iheart.ima {
 		private var _model:PluginModel;
 		
 		private var _adInfo:Object
+		private var _specialCompanions:Object;
 		private var _currentAd:VideoAd;
 		private var _companions:CompanionManager = new CompanionManager();
 		private var _video:Video;
@@ -190,6 +191,11 @@ package com.iheart.ima {
 			_adsManager.addEventListener(AdEvent.STARTED, onAdStarted);
 			_adsManager.addEventListener(AdLoadedEvent.LOADED, onAdLoaded);
 			
+			//has to happen before the the videoAds calls, otherwise _specialCompanions
+			//won't be populated for the events
+			_companions.displayCompanions(_adsManager);
+			_specialCompanions = _companions.getSpecialCompanions(_adsManager);
+			
 			if (_adsManager.type == AdsManagerTypes.VIDEO) {
 				var videoAdsManager:VideoAdsManager = _adsManager as VideoAdsManager;
 				videoAdsManager.clickTrackingElement = _clickTrackingElement;
@@ -198,8 +204,6 @@ package com.iheart.ima {
 			} else {
 				dispatchError(Errors.UNSUPPORTED_TYPE, 'Creative in response not supported');
 			}
-			
-			_companions.displayCompanions(_adsManager);
 		}
 		
 		/**
@@ -256,8 +260,11 @@ package com.iheart.ima {
 			
 			_adInfo = {
 				adType: adType,
-				duration: duration
+				duration: duration,
+				companions: _specialCompanions
 			};
+			
+			log.info('adloaded');
 			
 			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_LOADED, _adInfo);
 		}
