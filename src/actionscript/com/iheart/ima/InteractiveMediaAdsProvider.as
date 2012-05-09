@@ -48,10 +48,11 @@ package com.iheart.ima {
 		
 		private var _activeAd:AdPlayer;
 		private var _waitingClip:Clip;
+		private var _waitingUrl:String;
 		
 		/**
 		 * Plugin Methods
-		 * -----------------------------------------------------------------------------------------
+		 * ----------------------------------------------------------------------------------------
 		 */
 		
 		public function getDefaultConfig():Object {
@@ -69,12 +70,14 @@ package com.iheart.ima {
 			
 			if (_waitingClip) {
 				_activeAd = new AdPlayer(_player, _config, _model, _waitingClip);
+			} else if (_waitingUrl) {
+				_activeAd = new AdPlayer(_player, _config, _model, createClip(_waitingUrl));
 			}
 		}
 		
 		/**
 		 * StreamProvider methods
-		 * -----------------------------------------------------------------------------------------
+		 * ----------------------------------------------------------------------------------------
 		 */
 		
 		public function load(event:ClipEvent, clip:Clip, pauseAfterStart:Boolean = true):void {
@@ -195,22 +198,30 @@ package com.iheart.ima {
 		
 		/**
 		 * Javascript Methods
-		 * -----------------------------------------------------------------------------------------
+		 * ----------------------------------------------------------------------------------------
 		 */
 		
 		[External]
 		public function playAd(url:String):void {
-			_player.play(_player.config.createClip({
-				'provider': 'ima',
-				'url': url,
-				'scaling': 'fit'
-			}));
+			if (_player) {
+				_player.play(createClip(url));
+			} else {
+				_waitingUrl = url;
+			}
 		}
 		
 		/**
 		 * Private Methods
-		 * -----------------------------------------------------------------------------------------
+		 * ----------------------------------------------------------------------------------------
 		 */
+		
+		private function createClip(url:String):Clip {
+			return _player.config.createClip({
+				'provider': 'ima',
+				'url': url,
+				'scaling': 'fit'
+			})
+		}
 		
 		/*
 		private function _resize():void {

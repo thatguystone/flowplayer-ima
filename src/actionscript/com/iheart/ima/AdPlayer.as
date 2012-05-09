@@ -94,7 +94,7 @@ package com.iheart.ima {
 				return;
 			}
 			
-			log.info('URL: ' + clip.url);
+			log.info('VAST URL: ' + clip.url);
 			
 			Assert.notNull(clip.url);
 			
@@ -151,7 +151,7 @@ package com.iheart.ima {
 		}
 		
 		private function dispatchError(id:int, error:String):void {
-			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_ERROR, id);
+			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_ERROR, id, error);
 			
 			//OMFG there is no nice way to make flowplayer recover from an error
 			//in a playlist. this is the best there is, and even still, I had to
