@@ -46,7 +46,6 @@ package com.iheart.ima {
 			var ret:Object = {};
 			
 			iterateAds(adsManager, function(ad:Ad):void {
-				log.info('--1');
 				for (var k:String in _specialAds) {
 					var dims:Array = _specialAds[k];
 					
