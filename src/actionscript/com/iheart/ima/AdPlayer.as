@@ -264,7 +264,7 @@ package com.iheart.ima {
 				companions: _specialCompanions
 			};
 			
-			log.info('adloaded');
+			log.debug('adloaded');
 			
 			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_LOADED, _adInfo);
 		}

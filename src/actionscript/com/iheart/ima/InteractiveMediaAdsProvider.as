@@ -71,7 +71,8 @@ package com.iheart.ima {
 			if (_waitingClip) {
 				_activeAd = new AdPlayer(_player, _config, _model, _waitingClip);
 			} else if (_waitingUrl) {
-				_activeAd = new AdPlayer(_player, _config, _model, createClip(_waitingUrl));
+				//need the onPlaylistReplace event or flowplayer barfs
+				_player.play(createClip(_waitingUrl));
 			}
 		}
 		
@@ -220,7 +221,7 @@ package com.iheart.ima {
 				'provider': 'ima',
 				'url': url,
 				'scaling': 'fit'
-			})
+			});
 		}
 		
 		/*

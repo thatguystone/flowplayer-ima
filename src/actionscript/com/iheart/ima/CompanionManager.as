@@ -52,8 +52,7 @@ package com.iheart.ima {
 					log.info('Loading special companion: ' + k + ' - ' + dims[0] + 'x' + dims[1]);
 					
 					withHtmlAdSize(ad, dims[0], dims[1], function(comp:HtmlCompanionAd):void {
-						//strip out HTML tags before sending to the client
-						ret[k] = comp.content.replace(/<.*?>/g, "");
+						ret[k] = comp.content;
 					});
 				}
 			});
