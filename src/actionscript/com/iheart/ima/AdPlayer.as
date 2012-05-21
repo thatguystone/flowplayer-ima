@@ -233,6 +233,8 @@ package com.iheart.ima {
 					m.width = o.width;
 					m.height = o.height;
 					_clip.metaData = m;
+					
+					_clip.dispatch(ClipEventType.METADATA);
 				}
 				//onBufferFull: function():void {}
 			};
