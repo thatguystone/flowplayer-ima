@@ -39,6 +39,10 @@ package com.iheart.ima {
 				withHtmlAdSize(ad, 300, 250, function(comp:HtmlCompanionAd):void {
 					renderHtmlCompanionAd(comp, '300x250');
 				});
+				
+				withHtmlAdSize(ad, 300, 600, function(comp:HtmlCompanionAd):void {
+					renderHtmlCompanionAd(comp, '300x600');
+				});
 			});
 		}
 		
