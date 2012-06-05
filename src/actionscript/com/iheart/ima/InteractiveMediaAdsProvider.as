@@ -52,7 +52,7 @@ package com.iheart.ima {
 		
 		/**
 		 * Plugin Methods
-		 * ----------------------------------------------------------------------------------------
+		 * ------------------------------------------------------------------------------
 		 */
 		
 		public function getDefaultConfig():Object {
@@ -69,7 +69,7 @@ package com.iheart.ima {
 			_player = player;
 			
 			if (_waitingClip) {
-				_activeAd = new AdPlayer(_player, _config, _model, _waitingClip);
+				_play(_waitingClip);
 			} else if (_waitingUrl) {
 				//need the onPlaylistReplace event or flowplayer barfs
 				_player.play(createClip(_waitingUrl));
@@ -78,7 +78,7 @@ package com.iheart.ima {
 		
 		/**
 		 * StreamProvider methods
-		 * ----------------------------------------------------------------------------------------
+		 * ------------------------------------------------------------------------------
 		 */
 		
 		public function load(event:ClipEvent, clip:Clip, pauseAfterStart:Boolean = true):void {
@@ -90,7 +90,7 @@ package com.iheart.ima {
 			//WHYYYYYYY...sometimes player doesn't get to us until AFTER we're
 			//told to load something. What could possibly go wrong?
 			if (_player) {
-				_activeAd = new AdPlayer(_player, _config, _model, clip);
+				_play(clip);
 			} else {
 				_waitingClip = clip;
 			}
@@ -142,8 +142,7 @@ package com.iheart.ima {
 		}
 		
 		/**
-		 * Things that we just don't use.  Most of these can be ignored safely (I think) -- at
-		 * least they are in the AudioProvider plugin
+		 * Things that we just don't use.  Most of these can be ignored safely (I think)* at least, they are in the AudioProvider plugin
 		 */
 		 
 		public function get stopping():Boolean {
@@ -199,13 +198,13 @@ package com.iheart.ima {
 		
 		/**
 		 * Javascript Methods
-		 * ----------------------------------------------------------------------------------------
+		 * ------------------------------------------------------------------------------
 		 */
 		
 		[External]
 		public function playAd(url:String):void {
 			if (_player) {
-				_player.play(createClip(url));
+				_play(createClip(url));
 			} else {
 				_waitingUrl = url;
 			}
@@ -213,7 +212,7 @@ package com.iheart.ima {
 		
 		/**
 		 * Private Methods
-		 * ----------------------------------------------------------------------------------------
+		 * ------------------------------------------------------------------------------
 		 */
 		
 		private function createClip(url:String):Clip {
@@ -224,16 +223,17 @@ package com.iheart.ima {
 			});
 		}
 		
-		/*
-		private function _resize():void {
-			width = stage.width;
-			height = stage.height;
+		private function _play(clip:Clip):void {
+			//flowplayer does some stupid stuff when you call play(Clip) and play()
+			//multiple times in a row, and it can cause duplicate ads to pile up
+			//and play at the same time.  Dump any ads that come in with the same
+			//url as the currently-playing one.
+			if (_activeAd && _activeAd.clip.url == clip.url) {
+				log.warn('Rejecting double-played ad');
+				return;
+			}
 			
-			//draw a black background
-			graphics.beginFill(0x000000);
-			graphics.drawRect(0, 0, stage.width, stage.height);
-			graphics.endFill();
+			_activeAd = new AdPlayer(_player, _config, _model, clip);
 		}
-		//*/
 	}
 }

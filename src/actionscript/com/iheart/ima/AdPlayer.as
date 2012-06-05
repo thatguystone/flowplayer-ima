@@ -117,6 +117,10 @@ package com.iheart.ima {
 			return _waitTime ? _waitTime : _currentAd.currentTime;
 		}
 		
+		public function get clip():Clip {
+			return _clip;
+		}
+		
 		public function stop(e:ClipEvent):void {
 			//null when there's an ad error
 			if (_netstream) {
