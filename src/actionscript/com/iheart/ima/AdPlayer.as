@@ -22,7 +22,7 @@ package com.iheart.ima {
 	import org.flowplayer.model.ClipEvent;
 	import org.flowplayer.model.ClipEventType;
 	import org.flowplayer.model.DisplayProperties;
-    import org.flowplayer.model.DisplayPropertiesImpl;
+	import org.flowplayer.model.DisplayPropertiesImpl;
 	import org.flowplayer.model.PluginEventType;
 	import org.flowplayer.model.PluginModel;
 	import org.flowplayer.util.Assert;
