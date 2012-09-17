@@ -261,7 +261,8 @@ package com.iheart.ima {
 			_adInfo = {
 				adType: adType,
 				duration: duration,
-				companions: _companions.getSpecialCompanions(_adsManager)
+				companions: _companions.getSpecialCompanions(_adsManager),
+				customProperties: _clip.customProperties
 			};
 			
 			log.debug('adloaded');
