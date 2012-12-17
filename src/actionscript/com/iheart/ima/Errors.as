@@ -21,5 +21,6 @@ package com.iheart.ima {
 	
 	internal class Errors extends AdErrorCodes {
 		public static const UNSUPPORTED_TYPE:int = 100;
+		public static const BLANK_AD:int = 101;
 	}
 }

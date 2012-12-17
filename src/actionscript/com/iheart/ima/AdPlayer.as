@@ -44,6 +44,7 @@ package com.iheart.ima {
 	import com.google.ads.instream.api.AdsRequestType;
 	import com.google.ads.instream.api.AdTypes;
 	import com.google.ads.instream.api.CustomContentAd;
+	import com.google.ads.instream.api.CustomContentAdsManager;
 	import com.google.ads.instream.api.FlashAd;
 	import com.google.ads.instream.api.FlashAdCustomEvent;
 	import com.google.ads.instream.api.FlashAdsManager;
@@ -56,6 +57,8 @@ package com.iheart.ima {
 	import flash.display.MovieClip;
 	import flash.media.Video;
 	import flash.net.NetStream;
+	import flash.net.URLLoader;
+	import flash.net.URLRequest;
 	import flash.utils.setTimeout;
 	import flash.utils.clearTimeout;
 	
@@ -199,6 +202,13 @@ package com.iheart.ima {
 				videoAdsManager.clickTrackingElement = _clickTrackingElement;
 				videoAdsManager.load(_video);
 				videoAdsManager.play();
+			} else if (_adsManager.type == AdsManagerTypes.CUSTOM_CONTENT) {
+				// From: http://support.google.com/dfp/instream/bin/answer.py?hl=en&answer=156934
+				var customAdManager:CustomContentAdsManager = _adsManager as CustomContentAdsManager;
+				var availabilityForecastingAd:CustomContentAd = customAdManager.ads[0];
+				var availabilityForecastingXML:XML = new XML(availabilityForecastingAd.content);
+				var urlLoader:URLLoader = new URLLoader(new URLRequest(availabilityForecastingXML..fullImpression));
+				dispatchError(Errors.BLANK_AD, 'Blank ad returned');
 			} else {
 				dispatchError(Errors.UNSUPPORTED_TYPE, 'Creative in response not supported');
 			}
