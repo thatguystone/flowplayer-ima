@@ -30,8 +30,9 @@ package com.iheart.ima {
 		private var log:Log = new Log(this);
 		
 		private const _specialAds:Object = {
-			wallpaper: [10, 10],
-			pushdown: [970, 90]
+			albumArt: [500, 500],
+			pushdown: [970, 90],
+			wallpaper: [10, 10]
 		};
 		
 		public function displayCompanions(adsManager:AdsManager):void {
