@@ -22,8 +22,8 @@ BuiltInConfig.as with the following:
 
 		public class BuiltInConfig {
 			private var ima:InteractiveMediaAdsProvider;
-		
-			public static const config:Object = { 
+
+			public static const config:Object = {
 					ima: {
 						"url": "com.iheart.ima.InteractiveMediaAdsProvider"
 					}
@@ -51,7 +51,7 @@ Then you can continue use as normal.
 
 # Downloadable Plugin
 
-Hit the download link and grab the plugin. You can use it just like any other plugin in flowplayer.
+You can find it [here](dist/flowplayer.ima-3.2.7.swf?raw=true). You can use it just like any other plugin in flowplayer.
 
 ```javascript
 	plugins: {
