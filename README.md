@@ -6,6 +6,34 @@ If you need to schedule ads in your clips, or schedule prerolls, or anything lik
 
 # Usage
 
+## In a Playlist
+
+You can use the plugin just like any other streaming plugin:
+
+```javascript
+flowplayer("fp", "http://releases.flowplayer.org/swf/flowplayer-3.2.16.swf", {
+	plugins: {
+		ima: {
+			url: "flowplayer.ima-3.2.7.swf"
+		}
+	},
+
+	playlist: [
+		{
+			provider: 'ima',
+			url: 'http://ad.doubleclick.net/pfadx/N270.132652.1516607168321/B3442378.3;dcadv=1379578;sz=0x0;ord=79879;dcmt=text/xml'
+		},
+		{
+			url: 'http://pseudo01.hddn.com/vod/demo.flowplayervod/Extremists.flv'
+		}
+	]
+});
+```
+
+## Force Playing
+
+If you're feeling daring, you can FORCE flowplayer to play your clip; be careful as this overrides everything and just plays the clip, no matter what.
+
 ```javascript
 	f = flowplayer('player'...)
 	f.getPlugin('ima').playAd('http://some/path/to/vast.xml');
