@@ -255,7 +255,7 @@ package com.iheart.ima {
 
 			e.netStream.client = {
 				onMetaData: function(o:Object):void {
-					_clip.durationFromMetadata = o['duration'];
+					_clip.duration = _clip.durationFromMetadata = o['duration'];
 
 					var m:Object = _clip.metaData;
 					m.width = o.width;
