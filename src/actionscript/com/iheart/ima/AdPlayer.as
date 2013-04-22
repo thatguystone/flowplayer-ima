@@ -65,6 +65,7 @@ package com.iheart.ima {
 	internal class AdPlayer {
 		private var log:Log = new Log(this);
 
+		private var _provider:InteractiveMediaAdsProvider;
 		private var _player:Flowplayer;
 		private var _config:Config;
 		private var _clip:Clip;
@@ -86,7 +87,8 @@ package com.iheart.ima {
 		private var _volumeController:VolumeController;
 		private var _netstream:NetStream;
 
-		public function AdPlayer(player:Flowplayer, config:Config, model:PluginModel, clip:Clip) {
+		public function AdPlayer(provider:InteractiveMediaAdsProvider, player:Flowplayer, config:Config, model:PluginModel, clip:Clip) {
+			_provider = provider;
 			_player = player;
 			_screen = player.screen;
 			_config = config;
@@ -156,6 +158,8 @@ package com.iheart.ima {
 			if (_adsManager) {
 				_adsManager.unload();
 			}
+
+			_provider.adCleanup();
 		}
 
 		private function dispatchError(id:int, error:String):void {
@@ -334,6 +338,7 @@ package com.iheart.ima {
 			});
 		}
 
+
 		/**
 		 * The ad is done playing.
 		 */
@@ -355,6 +360,11 @@ package com.iheart.ima {
 			cleanup();
 
 			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_FINISH, _adInfo);
+
+			if (_clip.played) {
+				return;
+			}
+
 			_clip.dispatchBeforeEvent(new ClipEvent(ClipEventType.FINISH));
 		}
 	}
