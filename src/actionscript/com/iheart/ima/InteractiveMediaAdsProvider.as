@@ -47,6 +47,7 @@ package com.iheart.ima {
 		private var _playlist:Playlist;
 
 		private var _activeAd:AdPlayer;
+		private var _clip:Clip;
 		private var _waitingClip:Clip;
 		private var _waitingUrl:String;
 
@@ -90,6 +91,7 @@ package com.iheart.ima {
 			//WHYYYYYYY...sometimes player doesn't get to us until AFTER we're
 			//told to load something. What could possibly go wrong?
 			if (_player) {
+				_clip = clip;
 				_play(clip);
 			} else {
 				_waitingClip = clip;
@@ -112,7 +114,11 @@ package com.iheart.ima {
 		}
 
 		public function stop(e:ClipEvent, closeStream:Boolean = false):void {
-			_activeAd.stop(e);
+			if (_activeAd) {
+				_activeAd.stop(e);
+			} else if (_clip) {
+				_clip.dispatchEvent(e);
+			}
 		}
 
 		public function get time():Number {
@@ -237,6 +243,7 @@ package com.iheart.ima {
 				return;
 			}
 
+			_clip = clip;
 			_activeAd = new AdPlayer(this, _player, _config, _model, clip);
 		}
 	}

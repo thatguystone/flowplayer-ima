@@ -55,12 +55,14 @@ package com.iheart.ima {
 
 	import flash.display.DisplayObject;
 	import flash.display.MovieClip;
+	import flash.display.Shape;
+	import flash.display.Stage;
 	import flash.media.Video;
 	import flash.net.NetStream;
 	import flash.net.URLLoader;
 	import flash.net.URLRequest;
-	import flash.utils.setTimeout;
 	import flash.utils.clearTimeout;
+	import flash.utils.setTimeout;
 
 	internal class AdPlayer {
 		private var log:Log = new Log(this);
@@ -70,6 +72,7 @@ package com.iheart.ima {
 		private var _config:Config;
 		private var _clip:Clip;
 		private var _screen:DisplayProperties;
+		private var _stage:Stage;
 		private var _model:PluginModel;
 
 		private var _adInfo:Object
@@ -83,6 +86,7 @@ package com.iheart.ima {
 
 		//for holding the timer so the ad doesn't get killed
 		private var _waitTime:Number;
+		private var _flashTime:Number = 0;
 
 		private var _volumeController:VolumeController;
 		private var _netstream:NetStream;
@@ -91,6 +95,7 @@ package com.iheart.ima {
 			_provider = provider;
 			_player = player;
 			_screen = player.screen;
+			_stage = _player.panel.stage;
 			_config = config;
 			_model = model;
 			_clip = clip;
@@ -115,7 +120,10 @@ package com.iheart.ima {
 		}
 
 		public function get time():Number {
-			//wtf, this can happen....
+			if (_flashTime != 0) {
+				return _flashTime;
+			}
+
 			if (!_currentAd) {
 				return 0;
 			}
@@ -133,7 +141,10 @@ package com.iheart.ima {
 				_netstream.close();
 			}
 
-			_clip.dispatchEvent(e);
+			if (_clip) {
+				_clip.dispatchEvent(e);
+			}
+
 			cleanup();
 		}
 
@@ -158,6 +169,8 @@ package com.iheart.ima {
 			if (_adsManager) {
 				_adsManager.unload();
 			}
+
+			_flashTime = 0;
 
 			_provider.adCleanup();
 		}
@@ -185,14 +198,16 @@ package com.iheart.ima {
 		private function createAdsRequest():AdsRequest {
 			var request:AdsRequest = new AdsRequest();
 
-			_video = new Video(_screen.widthPx, _screen.heightPx);
+			_video = new Video(_stage.stageWidth, _stage.stageHeight);
 			_clickTrackingElement = new MovieClip();
 			_clickTrackingElement.addChild(_video);
 
+			log.debug("clickTrackingElement: " + _clickTrackingElement.width + "x" + _clickTrackingElement.height);
+
 			_clip.setContent(_clickTrackingElement);
 
-			request.adSlotHeight = _screen.heightPx;
-			request.adSlotWidth = _screen.widthPx;
+			request.adSlotHeight = _stage.stageHeight;
+			request.adSlotWidth = _stage.stageWidth;
 			request.adTagUrl = _clip.url;
 			request.adType = AdsRequestType.VIDEO;
 			request.disableCompanionAds = _config.disableCompanionAds;
@@ -222,6 +237,25 @@ package com.iheart.ima {
 				videoAdsManager.clickTrackingElement = _clickTrackingElement;
 				videoAdsManager.load(_video);
 				videoAdsManager.play();
+			} else if (_adsManager.type == AdsManagerTypes.FLASH) {
+				var flashAdsManager:FlashAdsManager = _adsManager as FlashAdsManager;
+
+				_player.panel.addView(_clickTrackingElement, null, DisplayPropertiesImpl.fullSize(null));
+
+				flashAdsManager.addEventListener(AdEvent.CONTENT_PAUSE_REQUESTED, onFlashContentPauseRequested);
+				flashAdsManager.addEventListener(AdEvent.CONTENT_RESUME_REQUESTED, onFlashContentResumeRequested);
+				flashAdsManager.addEventListener(AdSizeChangedEvent.SIZE_CHANGED, onFlashAdSizeChanged);
+				flashAdsManager.addEventListener(FlashAdCustomEvent.CUSTOM_EVENT, onFlashAdCustomEvent);
+
+				flashAdsManager.x = 0;
+				flashAdsManager.y = 0;
+				flashAdsManager.load();
+				flashAdsManager.play(_clickTrackingElement);
+
+				_flashTime = 2;
+
+				log.debug('Flash ad going for display!');
+
 			} else if (_adsManager.type == AdsManagerTypes.CUSTOM_CONTENT) {
 				// From: http://support.google.com/dfp/instream/bin/answer.py?hl=en&answer=156934
 				var customAdManager:CustomContentAdsManager = _adsManager as CustomContentAdsManager;
@@ -232,6 +266,22 @@ package com.iheart.ima {
 			} else {
 				dispatchError(Errors.UNSUPPORTED_TYPE, 'Creative in response not supported');
 			}
+		}
+
+		private function onFlashContentPauseRequested(event:AdEvent):void {
+			log.debug("onFlashContentPauseRequested");
+		}
+
+		private function onFlashContentResumeRequested(event:AdEvent):void {
+			log.debug("onFlashContentResumeRequested");
+		}
+
+		private function onFlashAdSizeChanged(event:AdSizeChangedEvent):void {
+			log.debug("Size change: " + event.type);
+		}
+
+		private function onFlashAdCustomEvent(event:FlashAdCustomEvent):void {
+			log.debug("Custom event: " + event.type);
 		}
 
 		/**
@@ -257,19 +307,22 @@ package com.iheart.ima {
 			_clip.dispatch(ClipEventType.BEGIN);
 			_netstream = _volumeController.netStream = e.netStream;
 
-			e.netStream.client = {
-				onMetaData: function(o:Object):void {
-					_clip.duration = _clip.durationFromMetadata = Math.ceil(o['duration']);
+			// Doesn't exist for flash ads
+			if (e.netStream) {
+				e.netStream.client = {
+					onMetaData: function(o:Object):void {
+						_clip.duration = _clip.durationFromMetadata = Math.ceil(o['duration']);
 
-					var m:Object = _clip.metaData;
-					m.width = o.width;
-					m.height = o.height;
-					_clip.metaData = m;
+						var m:Object = _clip.metaData;
+						m.width = o.width;
+						m.height = o.height;
+						_clip.metaData = m;
 
-					_clip.dispatch(ClipEventType.METADATA);
-				}
-				//onBufferFull: function():void {}
-			};
+						_clip.dispatch(ClipEventType.METADATA);
+					}
+					//onBufferFull: function():void {}
+				};
+			}
 
 			//FP creates a VideoDisplay object to house the tracking element (set in setContent),
 			//but it doesn't write it to the screen or anything, so we have to do it manually
@@ -277,28 +330,29 @@ package com.iheart.ima {
 			// - see org.flowplayer.view.VideoDisplay@init(): we don't give it a Video object,
 			//     so we're never added to the element that gets the correct positioning stuffs
 			_clip.onResized(function():void {
-				var p:DisplayProperties = new PropertyBinder(new DisplayPropertiesImpl(), null).copyProperties({left: '50%', top: '50%'}) as DisplayProperties
-				_player.panel.update(_clickTrackingElement, p);
+				_player.panel.update(_clickTrackingElement, DisplayPropertiesImpl.fullSize(null));
 				_player.panel.draw(_clickTrackingElement);
 			});
 
 			var adType:String = '',
 				duration:Number = -1;
 
-			if (e['ad']) {
+			if (e['ad'] && e['ad'] is VideoAd) {
 				_currentAd = e['ad'];
 				adType = MediaTool.getMediaType(_currentAd['mediaUrl']);
 				duration = _currentAd['duration'];
 				_clip.duration = duration;
+			} else {
+				adType = 'flash';
 			}
 
 			_adInfo = {
 				adType: adType,
-				description: _currentAd['description'],
+				description: _currentAd ? _currentAd['description'] : '',
 				duration: duration,
 				companions: _companions.getSpecialCompanions(_adsManager),
 				customProperties: _clip.customProperties,
-				title: _currentAd['title']
+				title: _currentAd ? _currentAd['title'] : ''
 			};
 
 			log.debug('adloaded');
@@ -329,15 +383,13 @@ package com.iheart.ima {
 			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_START, _adInfo);
 			_clip.dispatch(ClipEventType.START);
 			_clip.dispatch(ClipEventType.BUFFER_FULL);
-
-			_player.addToPanel(_clickTrackingElement, {left: '50%', top: '50%'});
+			_player.panel.addView(_clickTrackingElement, null, DisplayPropertiesImpl.fullSize(null));
 
 			//sometimes onFinish just doesn't fire. excellent.
 			_clip.onLastSecond(function():void {
 				_waitTime = _currentAd.currentTime;
 			});
 		}
-
 
 		/**
 		 * The ad is done playing.
@@ -355,17 +407,20 @@ package com.iheart.ima {
 			}
 			_onAdComplete = true;
 
-			log.info('onAdComplete');
+			function finish():void {
+				log.info('onAdComplete');
 
-			cleanup();
+				cleanup();
 
-			_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_FINISH, _adInfo);
-
-			if (_clip.played) {
-				return;
+				_model.dispatch(PluginEventType.PLUGIN_EVENT, Events.AD_FINISH, _adInfo);
+				_clip.dispatchBeforeEvent(new ClipEvent(ClipEventType.FINISH));
 			}
 
-			_clip.dispatchBeforeEvent(new ClipEvent(ClipEventType.FINISH));
+			if (_adsManager.type == AdsManagerTypes.FLASH) {
+				setTimeout(finish, 500);
+			} else {
+				finish();
+			}
 		}
 	}
 }
