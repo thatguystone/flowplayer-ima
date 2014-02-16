@@ -88,3 +88,7 @@ You can find it [here](dist/flowplayer.ima-3.2.7.swf?raw=true). You can use it j
 		}
 	}
 ```
+
+# From Google
+
+This plugin uses Google's IMA SDK, as such, you are bound to their terms of service: https://developers.google.com/interactive-media-ads/terms
